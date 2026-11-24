@@ -5,14 +5,28 @@ Renders mesh using OpenDr for visualization.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+
+from hybrik.paths import model_path as resolve_model_path
 from matplotlib.cbook import flatten
 
 import numpy as np
 import cv2
 
-from opendr.camera import ProjectPoints
-from opendr.renderer import ColoredRenderer
-from opendr.lighting import LambertianPointLight
+try:
+    from opendr.camera import ProjectPoints
+    from opendr.renderer import ColoredRenderer
+    from opendr.lighting import LambertianPointLight
+except ImportError:  # pragma: no cover - optional, unmaintained dependency
+    ProjectPoints = ColoredRenderer = LambertianPointLight = None
+
+
+def _require_opendr():
+    if ProjectPoints is None:
+        raise ImportError(
+            "hybrik.utils.render requires the legacy OpenDR/Chumpy stack, "
+            "which is not managed by this project. Install it yourself or use "
+            "hybrik.utils.render_pytorch3d instead."
+        )
 
 
 colors = {
@@ -29,7 +43,9 @@ class SMPLRenderer(object):
                  focal=500.,
                  princpt=[],
                  faces=None,
-                 face_path="./model_files/smpl_faces.npy"):
+                 face_path=None):
+        if face_path is None:
+            face_path = resolve_model_path('smpl_faces.npy')
         self.faces = np.load(face_path) if faces is None else faces
         self.w = img_size[1]
         self.h = img_size[0]
@@ -64,6 +80,7 @@ class SMPLRenderer(object):
         else:
             princpt = self.princpt
 
+        _require_opendr()
         use_cam = ProjectPoints(
             f=self.focal,
             rt=cam_rt,
@@ -136,6 +153,7 @@ def _create_renderer(w=640,
     c = np.array([w, h]) / 2. if c is None else c
     k = np.zeros(5) if k is None else k
 
+    _require_opendr()
     rn = ColoredRenderer()
 
     rn.camera = ProjectPoints(rt=rt, t=t, f=f, c=c, k=k)
@@ -319,7 +337,7 @@ def draw_skeleton(input_image, joints, draw_edges=True, vis=None, radius=None):
     image = input_image.copy()
     input_is_float = False
 
-    if np.issubdtype(image.dtype, np.float):
+    if np.issubdtype(image.dtype, np.floating):
         input_is_float = True
         max_val = image.max()
         if max_val <= 2.:  # should be 1 but sometimes it's slightly above 1
@@ -444,7 +462,7 @@ def draw_text(input_image, content):
     import cv2
     image = input_image.copy()
     input_is_float = False
-    if np.issubdtype(image.dtype, np.float):
+    if np.issubdtype(image.dtype, np.floating):
         input_is_float = True
         image = (image * 255).astype(np.uint8)
 

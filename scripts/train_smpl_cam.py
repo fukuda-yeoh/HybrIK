@@ -1,4 +1,5 @@
 """Script for multi-gpu training."""
+import logging
 import os
 import pickle as pk
 import random
@@ -12,7 +13,7 @@ from torch.nn.utils import clip_grad
 
 from hybrik.datasets import MixDataset, MixDatasetCam, PW3D, MixDataset2Cam
 from hybrik.models import builder
-from hybrik.opt import cfg, logger, opt
+from hybrik.opt import configure_experiment, setup_logger
 from hybrik.utils.env import init_dist
 from hybrik.utils.metrics import DataLogger, NullWriter, calc_coord_accuracy
 from hybrik.utils.transforms import get_func_heatmap_to_coord
@@ -22,6 +23,8 @@ from tqdm import tqdm
 # torch.set_num_threads(64)
 num_gpu = torch.cuda.device_count()
 valid_batch = 1 * num_gpu
+
+logger = logging.getLogger("hybrik")
 
 
 def _init_fn(worker_id):
@@ -197,6 +200,8 @@ def setup_seed(seed):
 
 
 def main():
+    global opt, cfg, logger
+    opt, cfg, logger = configure_experiment()
     if opt.seed is not None:
         setup_seed(opt.seed)
 
@@ -209,6 +214,9 @@ def main():
 
 
 def main_worker(gpu, opt, cfg):
+    global logger
+    if not logger.handlers:
+        logger = setup_logger(opt.work_dir)
     if opt.seed is not None:
         setup_seed(opt.seed)
 

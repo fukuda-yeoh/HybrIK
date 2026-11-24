@@ -1,0 +1,207 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hybrik"
+version = "0.2.0"
+description = "HybrIK: Hybrid Analytical-Neural Inverse Kinematics for Body Mesh Recovery"
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Machine Vision and Intelligence Group, SJTU" },
+]
+keywords = ["computer vision", "human pose and shape estimation", "pytorch"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "opencv-python",
+    "matplotlib",
+    "pycocotools",
+    "tqdm",
+    "easydict",
+    "pyyaml",
+    "joblib",
+    "pillow",
+    "tensorboard",
+]
+
+[project.urls]
+Homepage = "https://github.com/Jeff-sjtu/HybrIK"
+Paper = "https://arxiv.org/abs/2011.14672"
+
+[project.optional-dependencies]
+# Exactly one PyTorch backend extra must be selected. The torch/torchvision
+# wheels are resolved from the matching PyTorch index (see tool.uv.sources).
+cpu = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+]
+cu118 = [
+    "torch>=2.0 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torchvision>=0.15 ; sys_platform == 'linux' or sys_platform == 'win32'",
+]
+cu126 = [
+    "torch>=2.0 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torchvision>=0.15 ; sys_platform == 'linux' or sys_platform == 'win32'",
+]
+cu128 = [
+    "torch>=2.0 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torchvision>=0.15 ; sys_platform == 'linux' or sys_platform == 'win32'",
+]
+cu130 = [
+    "torch>=2.0 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torchvision>=0.15 ; sys_platform == 'linux' or sys_platform == 'win32'",
+]
+"rocm6.4" = [
+    "torch>=2.0 ; sys_platform == 'linux'",
+    "torchvision>=0.15 ; sys_platform == 'linux'",
+    "pytorch-triton-rocm ; sys_platform == 'linux'",
+]
+"rocm7.1" = [
+    "torch>=2.0 ; sys_platform == 'linux'",
+    "torchvision>=0.15 ; sys_platform == 'linux'",
+    "triton-rocm ; sys_platform == 'linux'",
+]
+"rocm7.2" = [
+    "torch>=2.0 ; sys_platform == 'linux'",
+    "torchvision>=0.15 ; sys_platform == 'linux'",
+    "triton-rocm ; sys_platform == 'linux'",
+]
+xpu = [
+    "torch>=2.0 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torchvision>=0.15 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "triton-xpu ; sys_platform == 'linux' or sys_platform == 'win32'",
+]
+# PyTorch3D is intentionally not an extra: its setup.py imports torch during
+# the build, so universal locking fails without an already-installed torch.
+# The README documents the two-step source install instead.
+
+[project.scripts]
+hybrik-detect-backend = "hybrik.backend:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=7",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+conflicts = [[
+    { extra = "cpu" },
+    { extra = "cu118" },
+    { extra = "cu126" },
+    { extra = "cu128" },
+    { extra = "cu130" },
+    { extra = "rocm6.4" },
+    { extra = "rocm7.1" },
+    { extra = "rocm7.2" },
+    { extra = "xpu" },
+]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu118", extra = "cu118", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cu126", extra = "cu126", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cu130", extra = "cu130", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-rocm6.4", extra = "rocm6.4", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-rocm7.1", extra = "rocm7.1", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-rocm7.2", extra = "rocm7.2", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
+]
+# triton-rocm and triton-xpu are not published on PyPI for the versions that
+# current torch wheels require, so resolve them from the matching PyTorch index.
+# rocm6.4 torch builds use the older `pytorch-triton-rocm` distribution name.
+pytorch-triton-rocm = [
+    { index = "pytorch-rocm6.4", extra = "rocm6.4", marker = "sys_platform == 'linux'" },
+]
+triton-rocm = [
+    { index = "pytorch-rocm7.1", extra = "rocm7.1", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-rocm7.2", extra = "rocm7.2", marker = "sys_platform == 'linux'" },
+]
+triton-xpu = [
+    { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu118", extra = "cu118", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cu126", extra = "cu126", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cu130", extra = "cu130", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-rocm6.4", extra = "rocm6.4", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-rocm7.1", extra = "rocm7.1", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-rocm7.2", extra = "rocm7.2", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-xpu", extra = "xpu", marker = "sys_platform != 'darwin'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm6.4"
+url = "https://download.pytorch.org/whl/rocm6.4"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm7.1"
+url = "https://download.pytorch.org/whl/rocm7.1"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm7.2"
+url = "https://download.pytorch.org/whl/rocm7.2"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["hybrik*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+hybrik = ["**/*.yaml", "**/*.json", "**/*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

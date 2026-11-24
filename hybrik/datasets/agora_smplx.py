@@ -6,7 +6,7 @@ import joblib
 import numpy as np
 import torch
 import torch.utils.data as data
-from pytorch3d.transforms.rotation_conversions import axis_angle_to_matrix
+from hybrik.utils.rotation import axis_angle_to_matrix
 from tqdm import tqdm
 
 from hybrik.models.layers.smplx.joint_names import JOINT_NAMES
@@ -14,15 +14,6 @@ from hybrik.models.layers.smplx.load_body_models import load_models
 from hybrik.utils.pose_utils import pixel2cam, reconstruction_error
 from hybrik.utils.presets.simple_transform_3d_smplx import \
     SimpleTransform3DSMPLX
-
-(
-    smplx_layer_neutral,
-    smplx_layer_male,
-    smplx_layer_female,
-    smplx_layer_neutral_kid,
-    smplx_layer_male_kid,
-    smplx_layer_female_kid
-) = load_models()
 
 
 class AGORAX(data.Dataset):
@@ -277,6 +268,15 @@ class AGORAX(data.Dataset):
 
             gender = db['gender'][idx]
             is_kid = db['is_kid'][idx]
+
+            (
+                smplx_layer_neutral,
+                smplx_layer_male,
+                smplx_layer_female,
+                smplx_layer_neutral_kid,
+                smplx_layer_male_kid,
+                smplx_layer_female_kid,
+            ) = load_models()
 
             if is_kid:
                 shape_kid = np.array(db['shape_kid'][idx]).reshape(1)

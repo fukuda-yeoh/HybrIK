@@ -1,3 +1,5 @@
+from hybrik.paths import model_path as resolve_model_path
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -70,9 +72,9 @@ class Simple3DPoseBaseSMPLCamReg(nn.Module):
         model_state.update(state)
         self.preact.load_state_dict(model_state)
 
-        h36m_jregressor = np.load('./model_files/J_regressor_h36m.npy')
+        h36m_jregressor = np.load(resolve_model_path('J_regressor_h36m.npy'))
         self.smpl = SMPL_layer(
-            './model_files/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl',
+            resolve_model_path('basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'),
             h36m_jregressor=h36m_jregressor,
             dtype=self.smpl_dtype
         )
@@ -88,7 +90,7 @@ class Simple3DPoseBaseSMPLCamReg(nn.Module):
         self.root_idx_smpl = 0
 
         # mean shape
-        init_shape = np.load('./model_files/h36m_mean_beta.npy')
+        init_shape = np.load(resolve_model_path('h36m_mean_beta.npy'))
         self.register_buffer(
             'init_shape',
             torch.Tensor(init_shape).float())

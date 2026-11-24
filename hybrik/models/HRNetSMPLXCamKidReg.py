@@ -1,3 +1,5 @@
+from hybrik.paths import model_path as resolve_model_path
+
 import torch
 import torch.nn as nn
 from easydict import EasyDict as edict
@@ -72,11 +74,11 @@ class HRNetSMPLXCamKidReg(nn.Module):
 
         self.smplx_layer = SMPLXLayer(
             # model_path='model_files/smpl_v1.1.0/smplx/SMPLX_NEUTRAL.npz',
-            model_path='model_files/smplx/SMPLX_NEUTRAL.npz',
+            model_path=resolve_model_path('smplx', 'SMPLX_NEUTRAL.npz'),
             num_betas=10,
             use_pca=False,
             age='kid',
-            kid_template_path='model_files/smplx_kid_template.npy',
+            kid_template_path=resolve_model_path('smplx_kid_template.npy'),
         )
 
         self.root_idx_smpl = 0

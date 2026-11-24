@@ -42,7 +42,7 @@ parser.add_argument('--flip-shift',
                     action='store_true')
 parser.add_argument('--rank', default=-1, type=int,
                     help='node rank for distributed testing')
-parser.add_argument('--dist-url', default='tcp://192.168.1.219:23456', type=str,
+parser.add_argument('--dist-url', default='tcp://127.0.0.1:23456', type=str,
                     help='url used to set up distributed testing')
 parser.add_argument('--dist-backend', default='nccl', type=str,
                     help='distributed backend')

@@ -1,5 +1,6 @@
 """Image demo script."""
 import argparse
+import subprocess
 import os
 
 import cv2
@@ -7,9 +8,14 @@ import numpy as np
 import torch
 from easydict import EasyDict as edict
 from hybrik.models import builder
+from hybrik.paths import config_path
 from hybrik.utils.config import update_config
 from hybrik.utils.presets import SimpleTransform3DSMPLX
-from hybrik.utils.render_pytorch3d import render_mesh
+# PyTorch3D is optional and only used for the 3D overlay video.
+try:
+    from hybrik.utils.render_pytorch3d import render_mesh
+except ImportError:
+    render_mesh = None
 from hybrik.utils.vis import get_max_iou_box, get_one_box, vis_2d
 from torchvision import transforms as T
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
@@ -133,13 +139,26 @@ parser.add_argument('--save-pt', default=False, dest='save_pt',
                     help='save prediction', action='store_true')
 parser.add_argument('--save-img', default=False, dest='save_img',
                     help='save prediction', action='store_true')
+parser.add_argument('--checkpoint',
+                    default='pretrained_models/hybrikx_rle_hrnet.pth',
+                    type=str,
+                    help='path to the pretrained checkpoint')
+parser.add_argument('--config',
+                    default='smplx/256x192_hrnet_rle_smplx_kid.yaml',
+                    type=str,
+                    help='packaged config name or path')
 
 
 opt = parser.parse_args()
 
 
-cfg_file = './configs/smplx/256x192_hrnet_rle_smplx_kid.yaml'
-CKPT = './pretrained_models/hybrikx_rle_hrnet.pth'
+cfg_file = config_path(opt.config)
+CKPT = opt.checkpoint
+if not os.path.isfile(CKPT):
+    raise SystemExit(
+        f'Checkpoint not found: {CKPT}\n'
+        'Download the pretrained model or pass --checkpoint /path/to/model.pth.'
+    )
 
 cfg = update_config(cfg_file)
 
@@ -214,7 +233,8 @@ if not os.path.exists(opt.out_dir):
     os.makedirs(opt.out_dir)
 if not os.path.exists(os.path.join(opt.out_dir, 'raw_images')):
     os.makedirs(os.path.join(opt.out_dir, 'raw_images'))
-if not os.path.exists(os.path.join(opt.out_dir, 'res_images')) and opt.save_img:
+if not os.path.exists(os.path.join(opt.out_dir, 'res_images')) \
+        and opt.save_img and render_mesh is not None:
     os.makedirs(os.path.join(opt.out_dir, 'res_images'))
 if not os.path.exists(os.path.join(opt.out_dir, 'res_2d_images')) and opt.save_img:
     os.makedirs(os.path.join(opt.out_dir, 'res_2d_images'))
@@ -222,31 +242,48 @@ if not os.path.exists(os.path.join(opt.out_dir, 'res_2d_images')) and opt.save_i
 _, info, _ = get_video_info(opt.video_name)
 video_basename = os.path.basename(opt.video_name).split('.')[0]
 
-savepath = f'./{opt.out_dir}/res_{video_basename}.mp4'
-savepath2d = f'./{opt.out_dir}/res_2d_{video_basename}.mp4'
+savepath = os.path.join(opt.out_dir, f'res_{video_basename}.mp4')
+savepath2d = os.path.join(opt.out_dir, f'res_2d_{video_basename}.mp4')
 info['savepath'] = savepath
 info['savepath2d'] = savepath2d
 
-write_stream = cv2.VideoWriter(
-    *[info[k] for k in ['savepath', 'fourcc', 'fps', 'frameSize']])
-write2d_stream = cv2.VideoWriter(
-    *[info[k] for k in ['savepath2d', 'fourcc', 'fps', 'frameSize']])
-if not write_stream.isOpened():
+
+def _open_writer(path):
+    return cv2.VideoWriter(
+        path, info['fourcc'], info['fps'], info['frameSize'])
+
+
+write_stream = None
+write2d_stream = _open_writer(info['savepath2d'])
+if render_mesh is not None:
+    write_stream = _open_writer(info['savepath'])
+
+writers_ok = write2d_stream.isOpened() and (
+    write_stream is None or write_stream.isOpened())
+if not writers_ok:
     print("Try to use other video encoders...")
     ext = info['savepath'].split('.')[-1]
     fourcc, _ext = recognize_video_ext(ext)
     info['fourcc'] = fourcc
     info['savepath'] = info['savepath'][:-4] + _ext
     info['savepath2d'] = info['savepath2d'][:-4] + _ext
-    write_stream = cv2.VideoWriter(
-        *[info[k] for k in ['savepath', 'fourcc', 'fps', 'frameSize']])
-    write2d_stream = cv2.VideoWriter(
-        *[info[k] for k in ['savepath2d', 'fourcc', 'fps', 'frameSize']])
+    write2d_stream.release()
+    write2d_stream = _open_writer(info['savepath2d'])
+    if write_stream is not None:
+        write_stream.release()
+        write_stream = _open_writer(info['savepath'])
 
-assert write_stream.isOpened(), 'Cannot open video for writing'
+if write_stream is not None:
+    assert write_stream.isOpened(), 'Cannot open video for writing'
 assert write2d_stream.isOpened(), 'Cannot open video for writing'
 
-os.system(f'ffmpeg -i {opt.video_name} {opt.out_dir}/raw_images/{video_basename}-%06d.png')
+subprocess.run(
+    [
+        "ffmpeg", "-i", opt.video_name,
+        os.path.join(opt.out_dir, "raw_images", f"{video_basename}-%06d.png"),
+    ],
+    check=True,
+)
 
 
 files = os.listdir(f'{opt.out_dir}/raw_images')
@@ -262,7 +299,12 @@ for file in tqdm(files):
 
 prev_box = None
 renderer = None
-smplx_faces = torch.from_numpy(hybrik_model.smplx_layer.faces.astype(np.int32))
+smplx_faces = None
+if render_mesh is not None:
+    smplx_faces = torch.from_numpy(hybrik_model.smplx_layer.faces.astype(np.int32))
+else:
+    print('PyTorch3D is not installed: skipping the 3D overlay video and '
+          'res_images. The 2D video and --save-pt output are still produced.')
 
 print('### Run Model...')
 idx = 0
@@ -345,30 +387,32 @@ for img_path in tqdm(img_path_list):
         verts_batch = vertices
         transl_batch = transl
 
-        color_batch = render_mesh(
-            vertices=verts_batch, faces=smplx_faces,
-            translation=transl_batch,
-            focal_length=focal, height=image.shape[0], width=image.shape[1])
+        if render_mesh is not None:
+            color_batch = render_mesh(
+                vertices=verts_batch, faces=smplx_faces,
+                translation=transl_batch,
+                focal_length=focal, height=image.shape[0], width=image.shape[1])
 
-        valid_mask_batch = (color_batch[:, :, :, [-1]] > 0)
-        image_vis_batch = color_batch[:, :, :, :3] * valid_mask_batch
-        image_vis_batch = (image_vis_batch * 255).cpu().numpy()
+            valid_mask_batch = (color_batch[:, :, :, [-1]] > 0)
+            image_vis_batch = color_batch[:, :, :, :3] * valid_mask_batch
+            image_vis_batch = (image_vis_batch * 255).cpu().numpy()
 
-        color = image_vis_batch[0]
-        valid_mask = valid_mask_batch[0].cpu().numpy()
-        input_img = image
-        alpha = 0.9
-        image_vis = alpha * color[:, :, :3] * valid_mask + (
-            1 - alpha) * input_img * valid_mask + (1 - valid_mask) * input_img
+            color = image_vis_batch[0]
+            valid_mask = valid_mask_batch[0].cpu().numpy()
+            input_img = image
+            alpha = 0.9
+            image_vis = alpha * color[:, :, :3] * valid_mask + (
+                1 - alpha) * input_img * valid_mask + (1 - valid_mask) * input_img
 
-        image_vis = image_vis.astype(np.uint8)
-        image_vis = cv2.cvtColor(image_vis, cv2.COLOR_RGB2BGR)
+            image_vis = image_vis.astype(np.uint8)
+            image_vis = cv2.cvtColor(image_vis, cv2.COLOR_RGB2BGR)
 
-        if opt.save_img:
-            idx += 1
-            res_path = os.path.join(opt.out_dir, 'res_images', f'image-{idx:06d}.jpg')
-            cv2.imwrite(res_path, image_vis)
-        write_stream.write(image_vis)
+            if opt.save_img:
+                idx += 1
+                res_path = os.path.join(
+                    opt.out_dir, 'res_images', f'image-{idx:06d}.jpg')
+                cv2.imwrite(res_path, image_vis)
+            write_stream.write(image_vis)
         '''
         # vis 2d
         pts = uv_jts * bbox_xywh[2]
@@ -427,5 +471,11 @@ for img_path in tqdm(img_path_list):
             res_db['img_path'].append(img_path)
         '''
 
-write_stream.release()
+if write_stream is not None:
+    write_stream.release()
 write2d_stream.release()
+
+if opt.save_pt:
+    out_path = os.path.join(opt.out_dir, 'res.pt')
+    torch.save(res_db, out_path)
+    print(f'Saved predictions to {out_path}')

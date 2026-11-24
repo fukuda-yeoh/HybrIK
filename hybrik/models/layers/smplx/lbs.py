@@ -22,8 +22,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
-from pytorch3d.transforms.rotation_conversions import (axis_angle_to_matrix,
-                                                       matrix_to_axis_angle)
+from hybrik.utils.rotation import axis_angle_to_matrix, matrix_to_axis_angle
 
 from .utils import Tensor, rot_mat_to_euler
 

@@ -4,12 +4,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .lbs import lbs, hybrik, rotmat_to_quat, quat_to_rotmat
+from hybrik.utils.smpl_pickle import load_smpl_pickle
 
-try:
-    import cPickle as pk
-except ImportError:
-    import pickle as pk
+from .lbs import lbs, hybrik, rotmat_to_quat, quat_to_rotmat
 
 
 ModelOutput = namedtuple('ModelOutput',
@@ -81,8 +78,7 @@ class SMPL_layer(nn.Module):
         self.LEAF_IDX = [self.JOINT_NAMES.index(name) for name in self.LEAF_NAMES]
         self.SPINE3_IDX = 9
 
-        with open(model_path, 'rb') as smpl_file:
-            self.smpl_data = Struct(**pk.load(smpl_file, encoding='latin1'))
+        self.smpl_data = Struct(**load_smpl_pickle(model_path))
 
         self.gender = gender
 

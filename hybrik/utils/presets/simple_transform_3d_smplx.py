@@ -1,5 +1,6 @@
 import math
 import random
+from functools import lru_cache
 
 import cv2
 import numpy as np
@@ -11,32 +12,27 @@ from ..transforms import (addDPG, affine_transform, flip_joints_3d, flip_thetas,
                           rotmat_to_quat_numpy, rotate_xyz_jts, rot_aa, flip_cam_xyz_joints_3d)
 from ..pose_utils import get_intrinsic_metrix
 from hybrik.models.layers.smplx.body_models import SMPLXLayer
+from hybrik.paths import model_path as resolve_model_path
 # from hybrik.models.layers.smplx.joint_names import JOINT_NAMES
 
 
-smplx_layer_neutral = SMPLXLayer(
-    model_path='model_files/smplx/SMPLX_NEUTRAL.npz',
-    num_betas=10,
-    use_pca=False,
-    age='kid',
-    kid_template_path='model_files/smplx_kid_template.npy',
-)
+@lru_cache(maxsize=1)
+def _smplx_layers():
+    """Build the SMPL-X layers on first use instead of at import time."""
+    def layer(model_name):
+        return SMPLXLayer(
+            model_path=resolve_model_path('smplx', model_name),
+            num_betas=10,
+            use_pca=False,
+            age='kid',
+            kid_template_path=resolve_model_path('smplx_kid_template.npy'),
+        )
 
-smplx_layer_female = SMPLXLayer(
-    model_path='model_files/smplx/SMPLX_FEMALE.npz',
-    num_betas=10,
-    use_pca=False,
-    age='kid',
-    kid_template_path='model_files/smplx_kid_template.npy',
-)
-
-smplx_layer_male = SMPLXLayer(
-    model_path='model_files/smplx/SMPLX_MALE.npz',
-    num_betas=10,
-    use_pca=False,
-    age='kid',
-    kid_template_path='model_files/smplx_kid_template.npy',
-)
+    return {
+        'neutral': layer('SMPLX_NEUTRAL.npz'),
+        'female': layer('SMPLX_FEMALE.npz'),
+        'male': layer('SMPLX_MALE.npz'),
+    }
 
 
 class SimpleTransform3DSMPLX(object):
@@ -167,11 +163,7 @@ class SimpleTransform3DSMPLX(object):
             #     kid_template_path='model_files/smplx_kid_template.npy',
             # )
 
-            smplx_layers_dict = {
-                'male': smplx_layer_male,
-                'female': smplx_layer_female,
-                'neutral': smplx_layer_neutral
-            }
+            smplx_layers_dict = _smplx_layers()
 
             self.shapedirs_dict = {}
             self.shapedirs_norm_dict = {}
@@ -430,14 +422,15 @@ class SimpleTransform3DSMPLX(object):
 
         is_kid = label['is_kid']
         gender = label['gender']
+        smplx_layers = _smplx_layers()
         if is_kid and gender == 'female':
-            gendered_smplx_layer = smplx_layer_neutral
+            gendered_smplx_layer = smplx_layers['neutral']
         elif gender == 'male':
-            gendered_smplx_layer = smplx_layer_male
+            gendered_smplx_layer = smplx_layers['male']
         elif gender == 'female':
-            gendered_smplx_layer = smplx_layer_female
+            gendered_smplx_layer = smplx_layers['female']
         else:
-            gendered_smplx_layer = smplx_layer_neutral
+            gendered_smplx_layer = smplx_layers['neutral']
 
         if 'beta_kid' in label:
             beta_full = np.concatenate([beta, beta_kid], axis=0)

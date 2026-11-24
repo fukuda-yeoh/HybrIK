@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import torch.utils.data as data
 from hybrik.utils.presets.simple_transform_3d_cam_eft import SimpleTransform3DCamEFT
-from pytorch3d.transforms.rotation_conversions import matrix_to_axis_angle
+from hybrik.utils.rotation import matrix_to_axis_angle
 
 s_coco_2_smpl_jt = [
     -1, 11, 12,

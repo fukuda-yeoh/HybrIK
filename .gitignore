@@ -73,7 +73,7 @@ target/
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# (.python-version is tracked so uv uses a tested interpreter version)
 
 # celery beat schedule file
 celerybeat-schedule
@@ -103,8 +103,20 @@ venv.bak/
 # mypy
 .mypy_cache/
 .vscode
+.idea/
 .tensorboard
 data
 data/
 exp
 model_files
+pretrained_models
+
+# HybrIK demo / training outputs
+res/
+res_*/
+raw_images/
+*.pk
+*.pt
+*.pth
+*.mp4
+dist/

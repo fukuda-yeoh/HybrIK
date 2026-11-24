@@ -7,13 +7,21 @@ import numpy as np
 import torch
 from easydict import EasyDict as edict
 from hybrik.models import builder
+from hybrik.paths import config_path
 from hybrik.utils.config import update_config
 from hybrik.utils.presets import SimpleTransform3DSMPLCam
-from hybrik.utils.render_pytorch3d import render_mesh
 from hybrik.utils.vis import get_one_box
 from torchvision import transforms as T
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from tqdm import tqdm
+
+try:
+    from hybrik.utils.render_pytorch3d import render_mesh
+except ImportError:
+    raise SystemExit(
+        'demo_image.py renders the mesh and requires PyTorch3D. '
+        'Install it (see the README) or use '
+        '`scripts/demo_video.py --save-pk` for PyTorch3D-free inference.') from None
 
 det_transform = T.Compose([T.ToTensor()])
 
@@ -42,13 +50,26 @@ parser.add_argument('--out-dir',
                     help='output folder',
                     default='',
                     type=str)
+parser.add_argument('--checkpoint',
+                    default='pretrained_models/hybrik_hrnet.pth',
+                    type=str,
+                    help='path to the pretrained checkpoint')
+parser.add_argument('--config',
+                    default='256x192_adam_lr1e-3-hrw48_cam_2x_w_pw3d_3dhp.yaml',
+                    type=str,
+                    help='packaged config name or path')
 opt = parser.parse_args()
 
 
-# cfg_file = 'configs/256x192_adam_lr1e-3-res34_smpl_3d_cam_2x_mix_w_pw3d.yaml'
+# cfg_file = config_path('256x192_adam_lr1e-3-res34_smpl_3d_cam_2x_mix_w_pw3d.yaml')
 # CKPT = './pretrained_w_cam.pth'
-cfg_file = 'configs/256x192_adam_lr1e-3-hrw48_cam_2x_w_pw3d_3dhp.yaml'
-CKPT = './pretrained_models/hybrik_hrnet.pth'
+cfg_file = config_path(opt.config)
+CKPT = opt.checkpoint
+if not os.path.isfile(CKPT):
+    raise SystemExit(
+        f'Checkpoint not found: {CKPT}\n'
+        'Download the pretrained model or pass --checkpoint /path/to/model.pth.'
+    )
 cfg = update_config(cfg_file)
 
 bbox_3d_shape = getattr(cfg.MODEL, 'BBOX_3D_SHAPE', (2000, 2000, 2000))
